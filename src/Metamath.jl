@@ -20,6 +20,7 @@ end
 typealias Expression Vector{Symbol}
 typealias Hypothesis Pair{Expression,Bool}
 
+# An axiom or theorem
 immutable Assertion
   hypotheses::Vector{Symbol}
   disjvars::Set{Pair{Symbol,Symbol}}
@@ -35,6 +36,7 @@ type Scope
   Scope() = new(Set{Symbol}(),Symbol[],Set{Symbol}[],Dict{Symbol,Symbol}())
 end
 
+# An environment holding truths and definitions accumulated by verifier
 immutable Environment
   filenames::Set{ASCIIString}
   tokens::Vector{Symbol}
@@ -52,10 +54,13 @@ immutable Environment
     Scope[Scope()],Symbol[],Expression[],Bool[false])
 end
 
+# a module global environment to simplify basic verification functions
 const globalenv = Environment()
 
+# true if label already used in hypotheses or assertions in env
 labelused(env,label) = haskey(env.hypotheses,label) || haskey(env.assertions,label)
 
+# return floating hypothesis in which variable appears
 function getfloatinghyp(env,variable)
   for scope in env.scopes
     if haskey(scope.floatinghyp,variable)
@@ -65,10 +70,13 @@ function getfloatinghyp(env,variable)
   return :dummytoken
 end
 
+# true if str is an active variable according to env
 isactivevariable(env,str) = any(scope->str in scope.activevariables,env.scopes)
 
+# true if str is an active hypothesis according to env
 isactivehyp(env,str) = any(scope->str in scope.activehyp,env.scopes)
 
+# true if str1 and str2 should be distinct according to env
 function isdvr(env,str1,str2)
   if str1==str2
     return false
@@ -83,17 +91,24 @@ function isdvr(env,str1,str2)
   return false
 end
 
-ismmws(ch) = return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\f' || ch == '\r'
-
+# Character set not allowed in Metamath labels
 const tokenspecials = Set(['.','-','_'])
-islabeltoken(str) = findfirst(c->!(c in tokenspecials || isalnum(c)),str)==0
 
+# true if ch is a Metamath whitespace
+ismmws(ch) = return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\f' || ch == '\r'
+# true if sym represent a string which is legal Metamath label
+islabeltoken(str) = findfirst(c->!(c in tokenspecials || isalnum(c)),str)==0
+# true if str is a legal Metamath symbol
 ismathsymboltoken(str::ASCIIString) = findfirst(str,'$')==0
+# true is sym represents a string which is legal Metamth symbol
 ismathsymboltoken(sym::Symbol) = ismathsymboltoken(string(sym))
 
+# true if c is not uppercase or question mark
 isntupperorq(c) = !(isupper(c) || c=='?')
+# true is str has only upper-case letters or question marks
 containsonlyupperorq(str) = findfirst(isntupperorq,str)==0
 
+# Return a single token from buffer discarding surrounding whitespace.
 function nexttoken(stream,buf::IOBuffer = IOBuffer())
   c = ' '
   while !eof(stream) && ismmws(c)
@@ -112,6 +127,9 @@ function nexttoken(stream,buf::IOBuffer = IOBuffer())
   return takebuf_string(buf)
 end
 
+# Parse filename into tokens and compressed proofs and store
+# parsed output into environment. Discard comments and read
+# other included files.
 function readtokens!(env, filename; use_mmap::Bool=true)
   if filename in env.filenames
     return nothing
@@ -211,6 +229,9 @@ function readtokens!(env, filename; use_mmap::Bool=true)
   return nothing
 end
 
+# Construct Assertion from expression by determining mandatory
+# hypotheses and disjoint variable restrictions. Assertion is inserted
+# into environment and returned
 function constructassertion(env,label, expression)
   assertion = Assertion(expression)
   varsused = Set{Symbol}()
@@ -251,6 +272,7 @@ function constructassertion(env,label, expression)
   return assertion
 end
 
+# Return token expressions appearing in various statements
 function readexpression!(env,stattype::Char, label, terminator)
   expression = Expression()
   if isempty(env.tokens)
@@ -280,6 +302,7 @@ function readexpression!(env,stattype::Char, label, terminator)
   return expression
 end
 
+# Return number vector encoded alphabetically in compressed proof
 function getproofnumbers(label, proof)
   proofnumbers = Vector{Int}()
   sizehint!(proofnumbers,length(proof))
@@ -318,6 +341,8 @@ function getproofnumbers(label, proof)
   return proofnumbers
 end
 
+# Perform substitutions of variables specified in substmap and return
+# resulting Expression
 function makesubstitution(original, substmapsrc, substmapdst)
   destination = Expression()
   for token in original
@@ -331,6 +356,7 @@ function makesubstitution(original, substmapsrc, substmapdst)
   return destination
 end
 
+# Verify a proof step referencing assertion (i.e. not hypothesis)
 function verifyassertionref(env, thlabel, reflabel, stack)
   assertion = env.assertions[reflabel]
   if length(stack)<length(assertion.hypotheses)
@@ -394,6 +420,7 @@ function verifyassertionref(env, thlabel, reflabel, stack)
   return nothing
 end
 
+# Verify regular proof
 function verifyregularproof(env, label, theorem, proof)
   stack = Vector{Expression}()
   for proofstep in proof
@@ -413,6 +440,7 @@ function verifyregularproof(env, label, theorem, proof)
   return nothing
 end
 
+# Verify compressed proof
 function verifycompressedproof(env,label,theorem,labels,proofnumbers)
   stack = Vector{Expression}()
   mandhypt = length(theorem.hypotheses)
@@ -450,6 +478,7 @@ function verifycompressedproof(env,label,theorem,labels,proofnumbers)
   return nothing
 end
 
+# Parse $p statement
 function parsep!(env,label)
   newtheorem = readexpression!(env,'p', label, Symbol("\$="))
   assertion = constructassertion(env,label, newtheorem)
@@ -527,6 +556,7 @@ function parsep!(env,label)
   return nothing
 end
 
+# Parse $e statement
 function parsee!(env,label)
   newhyp = readexpression!(env,'e', label, Symbol("\$."))
   env.hypotheses[label] = newhyp=>false
@@ -534,6 +564,7 @@ function parsee!(env,label)
   return nothing
 end
 
+# Parse $a statement
 function parsea!(env,label)
   newaxiom = readexpression!(env,'a',label,Symbol("\$."))
   assertion = constructassertion(env,label, newaxiom)
@@ -541,6 +572,7 @@ function parsea!(env,label)
   return nothing
 end
 
+# Parse $f statement
 function parsef!(env,label)
   if isempty(env.tokens)
     metamath_error("Unfinished \$f statement $label")
@@ -578,6 +610,7 @@ function parsef!(env,label)
   return nothing
 end
 
+# Parse labeled statement
 function parselabel!(env,label)
   if label in env.constants
     metamath_error("Attempt to reuse constant $label as a label")
@@ -606,6 +639,7 @@ function parselabel!(env,label)
   return nothing
 end
 
+# Parse $d statement
 function parsed!(env)
   dvars = Set{Symbol}()
   token = :dummytoken
@@ -633,6 +667,7 @@ function parsed!(env)
   return nothing
 end
 
+# Parse $c statement
 function parsec!(env)
   if length(env.scopes)>1
     metamath_error("\$c statement occurs in inner block")
@@ -668,6 +703,7 @@ function parsec!(env)
   return nothing
 end
 
+# Parse $v statement
 function parsev!(env)
   token = ""
   listempty = true
@@ -701,6 +737,7 @@ function parsev!(env)
   return nothing
 end
 
+# Verify filename using env
 function mmverify!(env::Environment,filename::AbstractString;
              use_mmap::Bool=true)
   if env.dirty[1]
@@ -741,10 +778,9 @@ function mmverify!(env::Environment,filename::AbstractString;
   return nothing
 end
 
-function main{T<:AbstractString}(args::Vector{T};
+# Verify filename with globalenv or a new environment
+function main(filename::AbstractString;
              use_mmap::Bool=true,use_globalenv::Bool=true)
-  length(args)<1 && metamath_error("Syntax: Metamath.jl <filename>")
-  filename = args[1]
   if use_globalenv
     env = globalenv
   else
@@ -754,6 +790,7 @@ function main{T<:AbstractString}(args::Vector{T};
   return env
 end
 
+# Restore scope to initial state without reallocating scope
 function empty!(scope::Scope)
   empty!(scope.activevariables)
   empty!(scope.activehyp)
@@ -762,6 +799,7 @@ function empty!(scope::Scope)
   return scope
 end
 
+# Restore env to initial state without reallocating env
 function empty!(env::Environment)
   empty!(env.filenames)
   empty!(env.tokens)
@@ -779,3 +817,17 @@ function empty!(env::Environment)
 end
 
 end # module
+
+function main{T<:AbstractString}(args::Vector{T};
+             use_mmap::Bool=true,use_globalenv::Bool=true)
+  length(args)<1 && metamath_error("Syntax: Metamath.jl <filename>")
+  filename = args[1]
+  if use_globalenv
+    env = globalenv
+  else
+    env = Environment()
+  end
+  mmverify!(env,filename)
+  return env
+end
+

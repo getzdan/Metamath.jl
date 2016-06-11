@@ -74,9 +74,28 @@ or graphically:
 | checkmm.cpp | #####                                |
 | Metamath.jl | ###                                  |
 
+## Notes
+
+(from Eric's notes on `checkmm.cpp`)
+
+1. The code assumes that the character set is compatible with ASCII.
+2. According to the spec, file inclusion commands should not include a file
+that has already been included. Unfortunately, determing whether two
+different strings refer to the same file is not easy, and, worse, is
+system-dependant. This program ignores the issue entirely and assumes
+that distinct strings name different files. This should be adequate for
+the present, at least.
+
+3. If the verifier finds an error, it will throw an error and quit. It will not
+attempt to recover and find more errors. The only condition that generates
+a diagnostic message but doesn't halt the program is an incomplete proof,
+specified by a question mark. In that case, as per the spec, a warning is
+issued and checking continues.
+
 ## Acknowledgements
 
-Acknowledgements are due to Norm Megill, creator of the Metamath language and ecosystem.
+Acknowledgements are due to Norm Megill, creator of the Metamath language and software
+ecosystem.
 And to Eric Schmidt who wrote `checkmm.cpp` which served as a basis for this package.
 
 [![Build Status](https://travis-ci.org/getzdan/Metamath.jl.svg?branch=master)](https://travis-ci.org/getzdan/Metamath.jl)
