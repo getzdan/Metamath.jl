@@ -1,5 +1,9 @@
 # Metamath.jl
 
+[![Build Status](https://travis-ci.org/getzdan/Metamath.jl.svg?branch=master)](https://travis-ci.org/getzdan/Metamath.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/86f1o182nfeb1yyg?svg=true)](https://ci.appveyor.com/project/getzdan/metamath-jl)
+[![Coverage Status](https://coveralls.io/repos/github/getzdan/Metamath.jl/badge.svg?branch=master)](https://coveralls.io/github/getzdan/Metamath.jl?branch=master)
+
 This package provides a standalone verifier for Metamath database files.
 
 For more information on the Metamath language see: http://us.metamath.org.
@@ -98,6 +102,3 @@ issued and checking continues.
 Acknowledgements are due to Norm Megill, creator of the Metamath language and software
 ecosystem.
 And to Eric Schmidt who wrote `checkmm.cpp` which served as a basis for this package.
-
-[![Build Status](https://travis-ci.org/getzdan/Metamath.jl.svg?branch=master)](https://travis-ci.org/getzdan/Metamath.jl)
-
