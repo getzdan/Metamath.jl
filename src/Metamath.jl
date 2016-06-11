@@ -4,7 +4,7 @@ using Compat
 using CSV
 using Iterators
 
-import Base: empty!
+import Base: empty!, show
 
 export mmverify!
 
@@ -70,9 +70,24 @@ function getfloatinghyp(env,variable)
   return :dummytoken
 end
 
+# Character set not allowed in Metamath labels
+const tokenspecials = Set(['.','-','_'])
+
+# true if ch is a Metamath whitespace
+ismmws(ch) = return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\f' || ch == '\r'
+# true if sym represent a string which is legal Metamath label
+islabeltoken(str) = findfirst(c->!(c in tokenspecials || isalnum(c)),str)==0
+# true if str is a legal Metamath symbol
+ismathsymboltoken(str::ASCIIString) = findfirst(str,'$')==0
+# true is sym represents a string which is legal Metamth symbol
+ismathsymboltoken(sym::Symbol) = ismathsymboltoken(string(sym))
+# true if c is not uppercase or question mark
+isntupperorq(c) = !(isupper(c) || c=='?')
+# true is str has only upper-case letters or question marks
+containsonlyupperorq(str) = findfirst(isntupperorq,str)==0
+
 # true if str is an active variable according to env
 isactivevariable(env,str) = any(scope->str in scope.activevariables,env.scopes)
-
 # true if str is an active hypothesis according to env
 isactivehyp(env,str) = any(scope->str in scope.activehyp,env.scopes)
 
@@ -91,23 +106,13 @@ function isdvr(env,str1,str2)
   return false
 end
 
-# Character set not allowed in Metamath labels
-const tokenspecials = Set(['.','-','_'])
-
-# true if ch is a Metamath whitespace
-ismmws(ch) = return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\f' || ch == '\r'
-# true if sym represent a string which is legal Metamath label
-islabeltoken(str) = findfirst(c->!(c in tokenspecials || isalnum(c)),str)==0
-# true if str is a legal Metamath symbol
-ismathsymboltoken(str::ASCIIString) = findfirst(str,'$')==0
-# true is sym represents a string which is legal Metamth symbol
-ismathsymboltoken(sym::Symbol) = ismathsymboltoken(string(sym))
-
-# true if c is not uppercase or question mark
-isntupperorq(c) = !(isupper(c) || c=='?')
-# true is str has only upper-case letters or question marks
-containsonlyupperorq(str) = findfirst(isntupperorq,str)==0
-
+# Output a string summary representation of an Environment type
+function show(io::IO,env::Environment)
+  print(io,"<Metamath environment: ")
+  print(io,join([length(getfield(env,f)) for f in fieldnames(Environment)],","))
+  print(io,">")
+end
+    
 # Return a single token from buffer discarding surrounding whitespace.
 function nexttoken(stream,buf::IOBuffer = IOBuffer())
   c = ' '
