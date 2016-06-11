@@ -44,10 +44,12 @@ immutable Environment
   variables::Set{Symbol}
   assertions::Dict{Symbol,Assertion}
   scopes::Vector{Scope}
+  substitutionssrc::Vector{Symbol}
+  substitutionsdst::Vector{Expression}
   dirty::Vector{Bool}
   Environment() = new(Set{ASCIIString}(),Symbol[],ASCIIString[],Set{Symbol}(),
     Dict{Symbol,Hypothesis}(), Set{Symbol}(), Dict{Symbol,Assertion}(),
-    Scope[Scope()],Bool[false])
+    Scope[Scope()],Symbol[],Expression[],Bool[false])
 end
 
 const globalenv = Environment()
@@ -325,7 +327,8 @@ end
 
 const subststats = Vector{Int}()
 
-function makesubstitution(original, substmapsrc, substmapdst, destination)
+function makesubstitution(original, substmapsrc, substmapdst)
+  destination = Expression()
   push!(subststats,length(substmapsrc))
   for token in original
     ind = findfirst(substmapsrc,token)
@@ -335,12 +338,8 @@ function makesubstitution(original, substmapsrc, substmapdst, destination)
       push!(destination,token)
     end
   end
-  return nothing
+  return destination
 end
-
-# const substitutions = Dict{Symbol,Expression}()
-const substitutionssrc = Vector{Symbol}()
-const substitutionsdst = Vector{Expression}()
 
 function verifyassertionref(env, thlabel, reflabel, stack)
   assertion = env.assertions[reflabel]
@@ -350,8 +349,8 @@ function verifyassertionref(env, thlabel, reflabel, stack)
   end
   base = length(stack)-length(assertion.hypotheses)
   # empty!(substitutions)
-  empty!(substitutionssrc)
-  empty!(substitutionsdst)
+  empty!(env.substitutionssrc)
+  empty!(env.substitutionsdst)
   for i=1:length(assertion.hypotheses)
     hypothesis = env.hypotheses[assertion.hypotheses[i]]
     if last(hypothesis)
@@ -363,12 +362,11 @@ function verifyassertionref(env, thlabel, reflabel, stack)
       subst = copy(stack[base+i])
       shift!(subst)
       # substitutions[first(hypothesis)[2]] = subst
-      push!(substitutionssrc,first(hypothesis)[2])
-      push!(substitutionsdst,subst)
+      push!(env.substitutionssrc,first(hypothesis)[2])
+      push!(env.substitutionsdst,subst)
     else
       # Essential hypothesis
-      dest = Expression()
-      makesubstitution(first(hypothesis),substitutionssrc,substitutionsdst,dest)
+      dest = makesubstitution(first(hypothesis),env.substitutionssrc,env.substitutionsdst)
       if dest != stack[base+i]
         metamath_error("In proof of theorem $thlabel unification failed")
       end
@@ -377,8 +375,8 @@ function verifyassertionref(env, thlabel, reflabel, stack)
   resize!(stack,base)
   # Verify disjoint variable conditions
   for vpair in assertion.disjvars
-    exp1 = substitutionsdst[findfirst(substitutionssrc,first(vpair))]
-    exp2 = substitutionsdst[findfirst(substitutionssrc,last(vpair))]
+    exp1 = env.substitutionsdst[findfirst(env.substitutionssrc,first(vpair))]
+    exp2 = env.substitutionsdst[findfirst(env.substitutionssrc,last(vpair))]
     # exp2 = substitutions[last(vpair)]
     exp1vars = Set{Symbol}()
     for token in exp1
@@ -401,8 +399,7 @@ function verifyassertionref(env, thlabel, reflabel, stack)
       end
     end
   end
-  dest = Expression()
-  makesubstitution(assertion.expression, substitutionssrc, substitutionsdst, dest)
+  dest = makesubstitution(assertion.expression, env.substitutionssrc, env.substitutionsdst)
   push!(stack,dest)
   return nothing
 end
@@ -749,6 +746,8 @@ function mmverify!(env::Environment,filename::AbstractString;
   if length(env.scopes)>1
     metamath_error("\${ without corresponding \$}")
   end
+  empty!(env.substitutionssrc)
+  empty!(env.substitutionsdst)
   env.dirty[1] = false
   return nothing
 end
