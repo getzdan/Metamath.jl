@@ -26,6 +26,7 @@ Metamath.main(joinpath(Pkg.dir("Metamath"),"data","demo.mm"))
 
 A more interesting database file is `set.mm` (containing axioms and theorems
 from Set Theory and beyond). To verify it:
+
 1. Download the updated `set.mm` to the current directory from the Metamath website.
 2. Use the following code:
 
