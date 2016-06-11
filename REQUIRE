@@ -1,3 +1,4 @@
 julia 0.4
 Iterators 0.1.9
 CSV 0.0.5
+Compat
