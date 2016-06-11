@@ -4,7 +4,7 @@ using Base.Test
 getenvsig(env) = map(f->length(getfield(env,f)),fieldnames(env))
 mmexample(fname) = joinpath(Pkg.dir("Metamath"),"data",fname)
 
-env = Metamath.main([mmexample("demo.mm")])
+env = Metamath.main(mmexample("demo.mm"))
 @test getenvsig(env) == [1,0,0,6,5,3,12,1,1]
 
 @test env == Metamath.globalenv
