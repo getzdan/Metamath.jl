@@ -1,4 +1,4 @@
-# Metamath
+# Metamath.jl
 
 This package provides a standalone verifier for Metamath database files.
 
