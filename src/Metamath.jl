@@ -1,8 +1,9 @@
+VERSION >= v"0.4.0" && __precompile__()
+
 module Metamath
 
 using Compat
 using CSV
-using Iterators
 
 import Base: empty!, show
 
@@ -54,7 +55,7 @@ immutable Environment
     Scope[Scope()],Symbol[],Expression[],Bool[false])
 end
 
-# a module global environment to simplify basic verification functions
+"""a global Metamath.Environment variable for defualt use by mmverify!"""
 const globalenv = Environment()
 
 # true if label already used in hypotheses or assertions in env
@@ -742,7 +743,7 @@ function parsev!(env)
   return nothing
 end
 
-# Verify filename using env
+"""`mmverify!(env,filename)` verifies database in filename using and then return env"""
 function mmverify!(env::Environment,filename::AbstractString;
              use_mmap::Bool=true)
   if env.dirty[1]
@@ -783,7 +784,16 @@ function mmverify!(env::Environment,filename::AbstractString;
   return nothing
 end
 
-# Verify filename with globalenv or a new environment
+"""`main(filename ; use_mmap=true, use_globalenv=true)`
+
+Verify contents of filename with a new environment or `globalenv` by default.
+`use_mmap`, true by default, makes file processing faster, may be impossible
+with other data sources.
+
+Return value: the Metamath environment after processing file.
+
+Example: `Metamath.main("set.mm")`
+"""
 function main(filename::AbstractString;
              use_mmap::Bool=true,use_globalenv::Bool=true)
   if use_globalenv
@@ -804,7 +814,7 @@ function empty!(scope::Scope)
   return scope
 end
 
-# Restore env to initial state without reallocating env
+"""`empty!(env)` returns `env` to initial empty state and returns `env`"""
 function empty!(env::Environment)
   empty!(env.filenames)
   empty!(env.tokens)
@@ -822,17 +832,4 @@ function empty!(env::Environment)
 end
 
 end # module
-
-function main{T<:AbstractString}(args::Vector{T};
-             use_mmap::Bool=true,use_globalenv::Bool=true)
-  length(args)<1 && metamath_error("Syntax: Metamath.jl <filename>")
-  filename = args[1]
-  if use_globalenv
-    env = globalenv
-  else
-    env = Environment()
-  end
-  mmverify!(env,filename)
-  return env
-end
 
