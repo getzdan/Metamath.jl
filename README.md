@@ -74,5 +74,10 @@ or graphically:
 | checkmm.cpp | #####                                |
 | Metamath.jl | ###                                  |
 
+## Acknowledgements
+
+Acknowledgements are due to Norm Megill, creator of the Metamath language and ecosystem.
+And to Eric Schmidt who wrote `checkmm.cpp` which served as a basis for this package.
+
 [![Build Status](https://travis-ci.org/getzdan/Metamath.jl.svg?branch=master)](https://travis-ci.org/getzdan/Metamath.jl)
 
