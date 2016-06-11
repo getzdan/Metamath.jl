@@ -86,14 +86,7 @@ end
 ismmws(ch) = return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\f' || ch == '\r'
 
 const tokenspecials = Set(['.','-','_'])
-function islabeltoken(token::Symbol)
-  for c in string(token)
-    if !((c in tokenspecials) || isalnum(c))
-      return false
-    end
-  end
-  return true
-end
+islabeltoken(str) = findfirst(c->!(c in tokenspecials || isalnum(c)),str)==0
 
 ismathsymboltoken(str::ASCIIString) = findfirst(str,'$')==0
 ismathsymboltoken(sym::Symbol) = ismathsymboltoken(string(sym))
@@ -218,9 +211,8 @@ function readtokens!(env, filename; use_mmap::Bool=true)
   return nothing
 end
 
-function constructassertion!(env,label, expression)
+function constructassertion(env,label, expression)
   assertion = Assertion(expression)
-  env.assertions[label] = assertion
   varsused = Set{Symbol}()
   for token in expression
     if token in env.variables
@@ -259,7 +251,8 @@ function constructassertion!(env,label, expression)
   return assertion
 end
 
-function readexpression!(env,stattype::Char, label, terminator, expression)
+function readexpression!(env,stattype::Char, label, terminator)
+  expression = Expression()
   if isempty(env.tokens)
     metamath_error("Unfinished \$$stattype statement $label")
   end
@@ -284,7 +277,7 @@ function readexpression!(env,stattype::Char, label, terminator, expression)
   if isempty(env.tokens) && token != terminator
     metamath_error("Unfinished \$$stattype statement $label")
   end
-  return nothing
+  return expression
 end
 
 function getproofnumbers(label, proof)
@@ -325,11 +318,8 @@ function getproofnumbers(label, proof)
   return proofnumbers
 end
 
-const subststats = Vector{Int}()
-
 function makesubstitution(original, substmapsrc, substmapdst)
   destination = Expression()
-  push!(subststats,length(substmapsrc))
   for token in original
     ind = findfirst(substmapsrc,token)
     if ind != 0
@@ -461,9 +451,9 @@ function verifycompressedproof(env,label,theorem,labels,proofnumbers)
 end
 
 function parsep!(env,label)
-  newtheorem = Expression()
-  readexpression!(env,'p', label, Symbol("\$="), newtheorem)
-  assertion = constructassertion!(env,label, newtheorem)
+  newtheorem = readexpression!(env,'p', label, Symbol("\$="))
+  assertion = constructassertion(env,label, newtheorem)
+  env.assertions[label] = assertion
   if isempty(env.tokens)
     metamath_error("Unfinished \$p statement")
   end
@@ -538,17 +528,16 @@ function parsep!(env,label)
 end
 
 function parsee!(env,label)
-  newhyp = Expression()
-  readexpression!(env,'e', label, Symbol("\$."), newhyp)
+  newhyp = readexpression!(env,'e', label, Symbol("\$."))
   env.hypotheses[label] = newhyp=>false
   push!(last(env.scopes).activehyp,label)
   return nothing
 end
 
 function parsea!(env,label)
-  newaxiom = Expression()
-  readexpression!(env,'a',label,Symbol("\$."),newaxiom)
-  constructassertion!(env,label, newaxiom)
+  newaxiom = readexpression!(env,'a',label,Symbol("\$."))
+  assertion = constructassertion(env,label, newaxiom)
+  env.assertions[label] = assertion
   return nothing
 end
 
@@ -724,7 +713,7 @@ function mmverify!(env::Environment,filename::AbstractString;
 
   while length(env.tokens)>0
     token = shift!(env.tokens)
-    if islabeltoken(token)
+    if islabeltoken(string(token))
       parselabel!(env,token)
     elseif token==Symbol("\$d")
       parsed!(env)
@@ -783,6 +772,8 @@ function empty!(env::Environment)
   empty!(env.assertions)
   resize!(env.scopes,1)
   empty!(env.scopes[1])
+  empty!(env.substitutionssrc)
+  empty!(env.substitutionsdst)
   env.dirty[1] = false
   return env
 end
