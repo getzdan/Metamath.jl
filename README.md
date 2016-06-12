@@ -13,9 +13,14 @@ http://us.metamath.org/downloads/checkmm.cpp).
 
 ## Installation
 
-Install this package within Julia using
+Install this package within Julia using:
 ```julia
 Pkg.add("Metamath")
+```
+
+or (while the package is not in the official METADATA):
+```julia
+Pkg.clone("git://github.com/getzdan/Metamath.jl")
 ```
 
 ## Usage
