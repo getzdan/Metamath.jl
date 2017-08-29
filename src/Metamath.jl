@@ -1,9 +1,7 @@
-VERSION >= v"0.4.0" && __precompile__()
-
+__precompile__()
 module Metamath
 
 using Compat
-using CSV
 
 import Base: empty!, show
 
@@ -39,9 +37,9 @@ end
 
 # An environment holding truths and definitions accumulated by verifier
 immutable Environment
-  filenames::Set{ASCIIString}
+  filenames::Set{String}
   tokens::Vector{Symbol}
-  compressedproofs::Vector{ASCIIString}
+  compressedproofs::Vector{String}
   constants::Set{Symbol}
   hypotheses::Dict{Symbol,Hypothesis}
   variables::Set{Symbol}
@@ -50,7 +48,7 @@ immutable Environment
   substitutionssrc::Vector{Symbol}
   substitutionsdst::Vector{Expression}
   dirty::Vector{Bool}
-  Environment() = new(Set{ASCIIString}(),Symbol[],ASCIIString[],Set{Symbol}(),
+  Environment() = new(Set{String}(),Symbol[],String[],Set{Symbol}(),
     Dict{Symbol,Hypothesis}(), Set{Symbol}(), Dict{Symbol,Assertion}(),
     Scope[Scope()],Symbol[],Expression[],Bool[false])
 end
@@ -79,7 +77,7 @@ ismmws(ch) = return ch == ' ' || ch == '\n' || ch == '\t' || ch == '\f' || ch ==
 # true if sym represent a string which is legal Metamath label
 islabeltoken(str) = findfirst(c->!(c in tokenspecials || isalnum(c)),str)==0
 # true if str is a legal Metamath symbol
-ismathsymboltoken(str::ASCIIString) = findfirst(str,'$')==0
+ismathsymboltoken(str::String) = findfirst(str,'$')==0
 # true is sym represents a string which is legal Metamth symbol
 ismathsymboltoken(sym::Symbol) = ismathsymboltoken(string(sym))
 # true if c is not uppercase or question mark
@@ -113,12 +111,18 @@ function show(io::IO,env::Environment)
   print(io,join([length(getfield(env,f)) for f in fieldnames(Environment)],","))
   print(io,">")
 end
-    
+   
+function readchar(io::IOBuffer)
+  @inbounds c = io.data[io.ptr]
+  io.ptr += 1
+  return Char(c)
+end
+
 # Return a single token from buffer discarding surrounding whitespace.
 function nexttoken(stream,buf::IOBuffer = IOBuffer())
   c = ' '
   while !eof(stream) && ismmws(c)
-    c = read(stream,Char)
+    c = readchar(stream)
   end
   while !ismmws(c)
     if c<'!' || c>'~'
@@ -128,9 +132,9 @@ function nexttoken(stream,buf::IOBuffer = IOBuffer())
     if eof(stream)
       break
     end
-    c = read(stream,Char)
+    c = readchar(stream)
   end
-  return takebuf_string(buf)
+  return String(take!(buf))
 end
 
 # Parse filename into tokens and compressed proofs and store
@@ -144,7 +148,7 @@ function readtokens!(env, filename; use_mmap::Bool=true)
   end
 
   isfile(filename) || throw(ArgumentError("\"$filename\" is not a valid or existing filename"))
-  stream = CSV.UnsafeBuffer(use_mmap ? Mmap.mmap(filename) : open(readbytes,filename))
+  stream = IOBuffer(use_mmap ? Mmap.mmap(filename) : open(readbytes,filename))
 
   incomment = false
   infileinclusion = false
@@ -211,7 +215,7 @@ function readtokens!(env, filename; use_mmap::Bool=true)
         end
         write(compressedbuf, strtoken)
       else
-        push!(env.compressedproofs,takebuf_string(compressedbuf))
+        push!(env.compressedproofs,String(take!(compressedbuf)))
         state = 0
       end
       continue
