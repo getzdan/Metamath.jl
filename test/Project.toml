@@ -1,0 +1,3 @@
+[deps]
+Metamath = "9e54f9b3-c8d7-44cf-85bf-66f3b9c8d440"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
